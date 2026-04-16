@@ -316,3 +316,28 @@ mining/
 - API for downstream systems
 
 See [docs/phase1-mvp.md](docs/phase1-mvp.md) for Phase 1 scope details.
+
+---
+
+## Deployment
+
+This project includes a production deployment workflow using GitHub Actions and Docker Compose.
+
+**How it works**: On every push to `main` (or manual trigger), the workflow SSHs into the production server, pulls the latest code, rebuilds Docker containers, and runs health checks. If health checks fail, it automatically rolls back to the previous version.
+
+**Key features**:
+- Automatic deployment on merge to `main`
+- Manual deployment via GitHub Actions UI
+- Post-deploy health verification (API, Worker, Web)
+- Automatic rollback on failure
+- Concurrency control (one deploy at a time)
+
+**Documentation**:
+- [Server Setup Guide](docs/deployment/PRODUCTION_SERVER_SETUP.md) — Prepare a new server
+- [Deploy Runbook](docs/deployment/DEPLOY_RUNBOOK.md) — Operating procedures
+- [Secrets & Environment Management](docs/deployment/SECRETS_AND_ENV_MANAGEMENT.md) — Configuration guide
+- [Implementation Plan](docs/deployment/DEPLOYMENT_IMPLEMENTATION_PLAN.md) — Design decisions
+
+**Required GitHub Secrets**: `DEPLOY_HOST`, `DEPLOY_PORT`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`, `APP_ENV_FILE`
+
+See the [Deploy Runbook](docs/deployment/DEPLOY_RUNBOOK.md) for complete setup instructions.
