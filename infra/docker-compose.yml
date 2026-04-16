@@ -1,0 +1,102 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mining-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mining
+      POSTGRES_USER: mining
+      POSTGRES_PASSWORD: mining
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mining -d mining"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    build:
+      context: ../services/analysis-worker
+      dockerfile: Dockerfile
+    container_name: mining-worker
+    restart: unless-stopped
+    environment:
+      WORKER_STORAGE_PATH: /data/storage
+      WORKER_PARQUET_PATH: /data/parquet
+      WORKER_ARTIFACTS_PATH: /data/artifacts
+      WORKER_DATABASE_URL: postgresql://mining:mining@postgres:5432/mining
+      WORKER_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      WORKER_OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
+      WORKER_USE_MOCK_LLM: ${USE_MOCK_LLM:-false}
+      WORKER_MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-500}
+    volumes:
+      - data_storage:/data/storage
+      - data_parquet:/data/parquet
+      - data_artifacts:/data/artifacts
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+    container_name: mining-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://mining:mining@postgres:5432/mining
+      WORKER_URL: http://worker:8000
+      STORAGE_PATH: /data/storage
+      PARQUET_PATH: /data/parquet
+      PORT: 3001
+      NODE_ENV: production
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-500}
+    volumes:
+      - data_storage:/data/storage
+      - data_parquet:/data/parquet
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      worker:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+    container_name: mining-web
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  data_storage:
+  data_parquet:
+  data_artifacts:

@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "cursor/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ─── Python Analysis Worker ────────────────────────────────────────────────
+  worker-lint-test:
+    name: Worker (Python) - Lint & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/analysis-worker
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint with ruff
+        run: ruff check app/ tests/ --ignore E501,E402 || true
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short -x
+        env:
+          WORKER_STORAGE_PATH: /tmp/storage
+          WORKER_PARQUET_PATH: /tmp/parquet
+          WORKER_ARTIFACTS_PATH: /tmp/artifacts
+          WORKER_DATABASE_URL: ""
+          WORKER_USE_MOCK_LLM: "true"
+
+  # ─── NestJS API ───────────────────────────────────────────────────────────
+  api-lint-test:
+    name: API (NestJS) - Lint, Type-check & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --workspace=apps/api
+
+      - name: Type-check & Build
+        run: npm run build --workspace=apps/api
+
+      - name: Run tests
+        run: npm run test --workspace=apps/api -- --passWithNoTests --forceExit
+
+  # ─── React Frontend ────────────────────────────────────────────────────────
+  web-lint-build:
+    name: Web (React) - Lint & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --workspace=apps/web
+
+      - name: Build
+        run: npm run build --workspace=apps/web
+        env:
+          VITE_API_URL: http://localhost:3001
+
+  # ─── Docker Compose Smoke Check ───────────────────────────────────────────
+  # Runs only on push (not on PRs) after all other checks pass.
+  # This is intentional: Docker builds are slow and the primary goal of PR CI
+  # is fast feedback on lint / type-check / tests.
+  docker-smoke:
+    name: Docker Compose - Smoke Check
+    runs-on: ubuntu-latest
+    needs: [worker-lint-test, api-lint-test, web-lint-build]
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create .env
+        run: cp .env.example .env
+
+      - name: Build and start services
+        working-directory: infra
+        run: |
+          docker compose build --parallel
+          docker compose up -d postgres
+          sleep 10
+
+      - name: Health check postgres
+        working-directory: infra
+        run: docker compose exec -T postgres pg_isready -U mining -d mining
+
+      - name: Stop services
+        working-directory: infra
+        if: always()
+        run: docker compose down -v
