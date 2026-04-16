@@ -43,9 +43,6 @@ jobs:
   api-lint-test:
     name: API (NestJS) - Lint, Type-check & Test
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/api
 
     steps:
       - uses: actions/checkout@v4
@@ -55,24 +52,24 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: apps/api/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Type-check
-        run: npm run build
+      - name: Lint
+        run: npm run lint --workspace=apps/api
+
+      - name: Type-check & Build
+        run: npm run build --workspace=apps/api
 
       - name: Run tests
-        run: npm run test -- --passWithNoTests --forceExit
+        run: npm run test --workspace=apps/api -- --passWithNoTests --forceExit
 
   # ─── React Frontend ────────────────────────────────────────────────────────
   web-lint-build:
     name: Web (React) - Lint & Build
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web
 
     steps:
       - uses: actions/checkout@v4
@@ -82,17 +79,23 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Type-check
-        run: npm run build
+      - name: Lint
+        run: npm run lint --workspace=apps/web
+
+      - name: Build
+        run: npm run build --workspace=apps/web
         env:
           VITE_API_URL: http://localhost:3001
 
   # ─── Docker Compose Smoke Check ───────────────────────────────────────────
+  # Runs only on push (not on PRs) after all other checks pass.
+  # This is intentional: Docker builds are slow and the primary goal of PR CI
+  # is fast feedback on lint / type-check / tests.
   docker-smoke:
     name: Docker Compose - Smoke Check
     runs-on: ubuntu-latest

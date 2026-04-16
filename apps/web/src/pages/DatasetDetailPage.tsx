@@ -663,7 +663,7 @@ function ResultsTab({ datasetId, dataset, onNavigate }: { datasetId: string; dat
     try {
       const res = await datasetsApi.getResults(datasetId);
       setResults(res.data.data);
-    } catch (err) {
+    } catch (_err) {
       // ignore
     } finally {
       setLoading(false);

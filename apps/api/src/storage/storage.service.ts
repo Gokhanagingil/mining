@@ -48,11 +48,11 @@ export class StorageService {
     }
   }
 
-  async saveUploadedFile(
+  saveUploadedFile(
     buffer: Buffer,
     datasetId: string,
     originalFilename: string,
-  ): Promise<string> {
+  ): string {
     const safeFilename = originalFilename.replace(/[^a-zA-Z0-9._-]/g, '_');
     const filePath = this.getUploadPath(datasetId, safeFilename);
     fs.writeFileSync(filePath, buffer);

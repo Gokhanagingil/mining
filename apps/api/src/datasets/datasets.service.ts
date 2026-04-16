@@ -10,7 +10,11 @@ import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { DatasetEntity, AnalysisRunEntity, JobRunEntity } from '../common/entities';
+import {
+  DatasetEntity,
+  AnalysisRunEntity,
+  JobRunEntity,
+} from '../common/entities';
 import { StorageService } from '../storage/storage.service';
 
 const WORKER_URL_KEY = 'WORKER_URL';
@@ -41,8 +45,10 @@ export class DatasetsService {
     originalFilename: string,
     fileSizeBytes: number,
   ): Promise<DatasetEntity> {
-    if (!originalFilename.toLowerCase().endsWith('.csv') &&
-        !originalFilename.toLowerCase().endsWith('.csv.gz')) {
+    if (
+      !originalFilename.toLowerCase().endsWith('.csv') &&
+      !originalFilename.toLowerCase().endsWith('.csv.gz')
+    ) {
       throw new BadRequestException('Only CSV files are supported');
     }
 
@@ -52,7 +58,11 @@ export class DatasetsService {
     }
 
     const id = uuidv4();
-    const storagePath = await this.storage.saveUploadedFile(buffer, id, originalFilename);
+    const storagePath = this.storage.saveUploadedFile(
+      buffer,
+      id,
+      originalFilename,
+    );
 
     const dataset = this.datasetRepo.create({
       id,
@@ -120,7 +130,9 @@ export class DatasetsService {
           job_id: jobId,
         }),
       );
-      this.logger.log(`Profiling triggered for dataset ${dataset.id}, job ${jobId}`);
+      this.logger.log(
+        `Profiling triggered for dataset ${dataset.id}, job ${jobId}`,
+      );
     } catch (err) {
       this.logger.error(`Worker call failed for profiling: ${err.message}`);
       await this.jobRunRepo.update(jobId, {
@@ -151,7 +163,8 @@ export class DatasetsService {
       .createQueryBuilder()
       .update()
       .set({
-        mappingDecision: () => `'${JSON.stringify({ ...mappingDecision, dataset_id: datasetId })}'::jsonb`,
+        mappingDecision: () =>
+          `'${JSON.stringify({ ...mappingDecision, dataset_id: datasetId })}'::jsonb`,
         status: 'awaiting-mapping' as any,
       })
       .where('id = :id', { id: datasetId })
@@ -175,7 +188,9 @@ export class DatasetsService {
 
     const parquetPath = this.storage.getParquetPath(dataset.id);
     if (!this.storage.fileExists(parquetPath)) {
-      throw new BadRequestException('Parquet file not found. Run profiling first.');
+      throw new BadRequestException(
+        'Parquet file not found. Run profiling first.',
+      );
     }
 
     const analysisRunId = uuidv4();
@@ -227,7 +242,9 @@ export class DatasetsService {
           job_id: jobId,
         }),
       );
-      this.logger.log(`Analysis triggered for dataset ${dataset.id}, run ${run.id}`);
+      this.logger.log(
+        `Analysis triggered for dataset ${dataset.id}, run ${run.id}`,
+      );
     } catch (err) {
       this.logger.error(`Worker call failed for analysis: ${err.message}`);
       await this.jobRunRepo.update(jobId, {

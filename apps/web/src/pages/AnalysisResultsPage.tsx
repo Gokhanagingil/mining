@@ -48,7 +48,7 @@ export function AnalysisResultsPage() {
     try {
       const res = await datasetsApi.getResults(id!);
       setRun(res.data.data?.latestRun || null);
-    } catch (err) {
+    } catch (_err) {
       // ignore
     } finally {
       setLoading(false);

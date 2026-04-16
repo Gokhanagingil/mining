@@ -5,7 +5,11 @@
 import { Controller, Post, Param, Body, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { DatasetEntity, AnalysisRunEntity, JobRunEntity } from '../common/entities';
+import {
+  DatasetEntity,
+  AnalysisRunEntity,
+  JobRunEntity,
+} from '../common/entities';
 
 interface JobCompleteBody {
   status: 'completed' | 'failed';
@@ -54,7 +58,10 @@ export class InternalController {
     return { ok: true };
   }
 
-  private async handleProfilingComplete(job: JobRunEntity, body: JobCompleteBody) {
+  private async handleProfilingComplete(
+    job: JobRunEntity,
+    body: JobCompleteBody,
+  ) {
     if (body.status === 'completed' && body.result) {
       const result = body.result;
       await this.datasetRepo.update(job.datasetId, {
@@ -72,14 +79,19 @@ export class InternalController {
         status: 'failed',
         errorMessage: body.error || 'Profiling failed',
       });
-      this.logger.error(`Profiling failed for dataset ${job.datasetId}: ${body.error}`);
+      this.logger.error(
+        `Profiling failed for dataset ${job.datasetId}: ${body.error}`,
+      );
     }
   }
 
-  private async handleAnalysisComplete(job: JobRunEntity, body: JobCompleteBody) {
+  private async handleAnalysisComplete(
+    job: JobRunEntity,
+    body: JobCompleteBody,
+  ) {
     if (body.status === 'completed' && body.result) {
       const result = body.result;
-      await this.analysisRunRepo.update(job.analysisRunId!, {
+      await this.analysisRunRepo.update(job.analysisRunId, {
         status: 'completed',
         metricsResult: result.metrics,
         insightCandidates: result.insight_candidates,
@@ -94,7 +106,7 @@ export class InternalController {
         `Analysis completed for dataset ${job.datasetId}, run ${job.analysisRunId}`,
       );
     } else {
-      await this.analysisRunRepo.update(job.analysisRunId!, {
+      await this.analysisRunRepo.update(job.analysisRunId, {
         status: 'failed',
         errorMessage: body.error || 'Analysis failed',
       });

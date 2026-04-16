@@ -183,48 +183,53 @@ All metrics computed via DuckDB SQL over Parquet:
 
 ### Local Development (without Docker)
 
+This repo uses **npm workspaces**. All Node.js dependencies are installed from the repository root via a single `package-lock.json`.
+
 ```bash
-# 1. Start Postgres
+# 1. Install all Node.js dependencies (from repo root)
+npm ci
+
+# 2. Start Postgres
 docker run -d --name postgres \
   -e POSTGRES_DB=mining -e POSTGRES_USER=mining -e POSTGRES_PASSWORD=mining \
   -p 5432:5432 postgres:16-alpine
 
-# 2. Start analysis worker
+# 3. Start analysis worker
 cd services/analysis-worker
 pip install -r requirements.txt
 WORKER_STORAGE_PATH=/tmp/storage WORKER_PARQUET_PATH=/tmp/parquet \
 WORKER_DATABASE_URL=postgresql://mining:mining@localhost:5432/mining \
 uvicorn app.main:app --port 8000 --reload
 
-# 3. Start API
-cd apps/api
-npm install
+# 4. Start API (from repo root)
 DATABASE_URL=postgresql://mining:mining@localhost:5432/mining \
 WORKER_URL=http://localhost:8000 \
-npm run start:dev
+npm run start:dev --workspace=apps/api
 
-# 4. Start web
-cd apps/web
-npm install
-VITE_API_URL=http://localhost:3001 npm run dev
+# 5. Start web (from repo root)
+VITE_API_URL=http://localhost:3001 npm run dev --workspace=apps/web
 ```
 
 ### Running Tests
 
 ```bash
+# Install all dependencies first (from repo root)
+npm ci
+
 # Python tests
 cd services/analysis-worker
 PYTHONPATH=. WORKER_STORAGE_PATH=/tmp/storage WORKER_PARQUET_PATH=/tmp/parquet \
 WORKER_DATABASE_URL="" WORKER_USE_MOCK_LLM=true \
 pytest tests/ -v
 
-# API tests
-cd apps/api
-npm test
+# API lint, build, and tests (from repo root)
+npm run lint --workspace=apps/api
+npm run build --workspace=apps/api
+npm run test --workspace=apps/api
 
-# Frontend build check
-cd apps/web
-npm run build
+# Frontend lint and build (from repo root)
+npm run lint --workspace=apps/web
+npm run build --workspace=apps/web
 ```
 
 ### Generating Demo Datasets

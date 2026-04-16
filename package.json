@@ -20,6 +20,9 @@
     "npm": ">=10.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.3.3"
+    "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "rxjs": "7.8.2"
   }
 }
